@@ -1,0 +1,27 @@
+FROM public.ecr.aws/docker/library/node:24-slim
+
+# Atualizar npm para versão mais recente
+RUN npm install -g npm@latest --loglevel=error
+
+# Instalar curl para health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+
+# Copiar package.json raiz e instalar dependências do backend
+COPY package*.json ./
+RUN npm install --loglevel=error
+
+# Copiar package.json do client e instalar dependências (inclui devDependencies para o build do Vite)
+COPY client/package*.json ./client/
+RUN cd client && npm install --legacy-peer-deps --loglevel=error
+
+# Copiar todos os arquivos do projeto
+COPY . .
+
+# Build do frontend com Vite (VITE_API_URL aponta para a raiz, pois Express serve tudo)
+RUN cd client && VITE_API_URL=/api npm run build
+
+EXPOSE 8080
+
+CMD [ "npm", "start" ]
